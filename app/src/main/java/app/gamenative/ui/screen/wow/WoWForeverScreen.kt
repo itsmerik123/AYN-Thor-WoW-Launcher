@@ -1,6 +1,7 @@
 package app.gamenative.ui.screen.wow
 
 import app.gamenative.externaldisplay.PadSettings
+import app.gamenative.externaldisplay.ThorSplit
 import android.content.Context
 import android.os.Build
 import android.os.Environment
@@ -99,6 +100,7 @@ fun WoWForeverScreen(
     var flavor by remember { mutableStateOf(WowFlavor.load(context)) }
     var buttonPad by remember { mutableStateOf(ButtonPad.isEnabled(context, flavor)) }
     var r3Toggle by remember { mutableStateOf(ButtonPad.r3Toggle(context, flavor)) }
+    var splitUi by remember { mutableStateOf(ThorSplit.isEnabled(context, flavor.name)) }
     var region by remember { mutableStateOf(WowFlavor.region) }
     var forceGamepadUi by remember { mutableStateOf(ButtonPad.forceGamepadUi(context, flavor)) }
     var gamePath by remember { mutableStateOf(GamePath.load(context)) }
@@ -203,6 +205,7 @@ fun WoWForeverScreen(
         buttonPad = ButtonPad.isEnabled(context, selected)
         forceGamepadUi = ButtonPad.forceGamepadUi(context, selected)
         r3Toggle = ButtonPad.r3Toggle(context, selected)
+        splitUi = ThorSplit.isEnabled(context, selected.name)
         errorMessage = null
         versionStatus = null
         gamePath = GamePath.load(context)
@@ -436,6 +439,11 @@ fun WoWForeverScreen(
                     onR3Toggle = {
                         r3Toggle = it
                         ButtonPad.setR3Toggle(context, flavor, it)
+                    },
+                    splitUi = splitUi,
+                    onSplitUi = {
+                        splitUi = it
+                        ThorSplit.setEnabled(context, flavor.name, it)
                     },
                 )
             }
@@ -1006,6 +1014,8 @@ private fun LaunchSwitches(
     onForceGamepadUi: (Boolean) -> Unit,
     r3Toggle: Boolean,
     onR3Toggle: (Boolean) -> Unit,
+    splitUi: Boolean,
+    onSplitUi: (Boolean) -> Unit,
 ) {
     @Composable
     fun Item(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
@@ -1023,6 +1033,7 @@ private fun LaunchSwitches(
         Item("Action button pad", buttonPad, onButtonPad)
         Item("Force gamepad UI", forceGamepadUi, onForceGamepadUi)
         Item("R3 toggles mouse / camera", r3Toggle, onR3Toggle)
+        Item("Game UI on bottom screen", splitUi, onSplitUi)
     }
 }
 
@@ -1269,7 +1280,23 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
 
     onStatus("Configuring ${gpu.label} container...")
     val containerManager = ContainerManager(context)
-    val config = containerConfig(gameRoot, gpu, arm64Exe.name, gpu.screenSize)
+    // Thor split screen: one tall screen, game area on top, UI band on the bottom display.
+    val flavorDirFile = File(gameRoot, FLAVOR_DIR)
+    val split = ThorSplit.isEnabled(context, flavor.name) &&
+        gpu.screenSize == "1920x1080" &&
+        ThorSplit.bottomDisplaySize(context) != null
+    val screenSize = if (split) {
+        val layout = ThorSplit.prepare(context)
+        ThorSplit.installAddon(context, flavorDirFile, layout)
+        setWindowedResolution(flavorDirFile, layout.screenSize, onlyIf = null)
+        layout.screenSize
+    } else {
+        ThorSplit.clear()
+        ThorSplit.disableAddon(flavorDirFile)
+        ThorSplit.lastResolution(context)?.let { setWindowedResolution(flavorDirFile, "1920x1080", onlyIf = it) }
+        gpu.screenSize
+    }
+    val config = containerConfig(gameRoot, gpu, arm64Exe.name, screenSize)
     val existing = containerManager.getContainerById(CONTAINER_ID)
     if (existing == null) {
         onStatus("Creating prefix environment (first boot)...")
@@ -1280,8 +1307,11 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
     val container = checkNotNull(containerManager.getContainerById(CONTAINER_ID)) { "Container creation failed. Check system storage and logs." }
     // Second display (if any) shows the 12-button action bar pad when its switch is on.
     container.setExternalDisplayMode(
-        if (ButtonPad.isEnabled(context, WowFlavor.current)) Container.EXTERNAL_DISPLAY_MODE_BUTTONS
-        else Container.EXTERNAL_DISPLAY_MODE_OFF,
+        when {
+            split -> Container.EXTERNAL_DISPLAY_MODE_SPLIT
+            ButtonPad.isEnabled(context, WowFlavor.current) -> Container.EXTERNAL_DISPLAY_MODE_BUTTONS
+            else -> Container.EXTERNAL_DISPLAY_MODE_OFF
+        },
     )
     container.saveData()
     return CONTAINER_ID
@@ -1363,6 +1393,22 @@ private val LEGACY_CONFIG_VALUES = mapOf(
 )
 
 /** [gamepadMode]: 0 = force gamepad UI on, 1 = leave the player's lines alone, 2 = force off. */
+/** Sets gxWindowedResolution in Config.wtf; with [onlyIf], only when it currently has that value. */
+private fun setWindowedResolution(flavorDir: File, value: String, onlyIf: String?) {
+    val configWtf = File(flavorDir, "WTF/Config.wtf")
+    if (!configWtf.exists()) return
+    val lines = configWtf.readLines()
+    var found = false
+    val updated = lines.map { line ->
+        if (line.startsWith("SET gxWindowedResolution ", ignoreCase = true)) {
+            found = true
+            val current = line.substringAfter("gxWindowedResolution ").trim().trim('"')
+            if (onlyIf == null || current == onlyIf) "SET gxWindowedResolution \"$value\"" else line
+        } else line
+    } + if (!found && onlyIf == null) listOf("SET gxWindowedResolution \"$value\"") else emptyList()
+    if (updated != lines) configWtf.writeText(updated.joinToString("\n") + "\n")
+}
+
 private fun ensureGameConfig(root: File, gamepadMode: Int) {
     val defaults = CONFIG_DEFAULTS.also { d ->
         when (gamepadMode) {

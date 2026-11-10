@@ -1895,6 +1895,10 @@ fun XServerScreen(
                     }
                 }
                 getxServer().renderer = renderer
+                // Thor split screen: the top display shows only the game area of the tall screen.
+                app.gamenative.externaldisplay.ThorSplit.active?.let { split ->
+                    (renderer as? VulkanRenderer)?.setSplitCrop(split.top)
+                }
                 PluviaApp.touchpadView = TouchpadView(context, getxServer(), PrefManager.getBoolean("capture_pointer_on_external_mouse", true))
                 PluviaApp.touchpadView?.setMoveCursorToTouchpoint(PrefManager.getBoolean("move_cursor_to_touchpoint", false))
 

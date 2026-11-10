@@ -26,7 +26,7 @@ class ExternalDisplayInputController(
     private val xServer: XServer,
     private val touchpadViewProvider: () -> TouchpadView?,
 ) {
-    enum class Mode { OFF, TOUCHPAD, KEYBOARD, HYBRID, BUTTONS }
+    enum class Mode { OFF, TOUCHPAD, KEYBOARD, HYBRID, BUTTONS, SPLIT }
 
     companion object {
         fun fromConfig(value: String?): Mode = when (value?.lowercase()) {
@@ -34,6 +34,7 @@ class ExternalDisplayInputController(
             Container.EXTERNAL_DISPLAY_MODE_KEYBOARD -> Mode.KEYBOARD
             Container.EXTERNAL_DISPLAY_MODE_HYBRID -> Mode.HYBRID
             Container.EXTERNAL_DISPLAY_MODE_BUTTONS -> Mode.BUTTONS
+            Container.EXTERNAL_DISPLAY_MODE_SPLIT -> Mode.SPLIT
             else -> Mode.OFF
         }
     }
@@ -210,6 +211,11 @@ private class ExternalInputPresentation(
             }
             ExternalDisplayInputController.Mode.BUTTONS -> {
                 setContentView(ExternalActionPad(context, xServer, PadTheme.DEFAULT, touchpadViewProvider))
+            }
+            ExternalDisplayInputController.Mode.SPLIT -> {
+                val layout = ThorSplit.active
+                if (layout != null) setContentView(SplitBandView(context, xServer, layout, touchpadViewProvider))
+                else setContentView(ExternalActionPad(context, xServer, PadTheme.DEFAULT, touchpadViewProvider))
             }
             else -> {
                 setContentView(FrameLayout(context))

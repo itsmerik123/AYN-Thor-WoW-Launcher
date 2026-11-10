@@ -339,6 +339,7 @@ public class PresentExtension implements Extension {
             } else if (vr != null && window.attributes.isMapped()) {
                 sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
                 vr.onUpdateWindowContentDirect(window, pixmap.drawable, xOff, yOff);
+                VulkanRenderer.forwardToMirrors(window, pixmap.drawable, xOff, yOff);
                 if (targetFps > 0) scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, vr);
                 else sendIdleNotify(window, pixmap, serial, idleFence);
             } else {

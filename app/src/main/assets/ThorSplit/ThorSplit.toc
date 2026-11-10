@@ -1,0 +1,9 @@
+## Interface: 16001, 11507, 50501, 110207
+## Title: |cff3fc7ebThorSplit|r
+## Notes: AYN Thor split screen: game on the top screen, UI panels on the bottom screen.
+## Author: itsmerik123
+## Version: 0.1.0
+## SavedVariablesPerCharacter: ThorSplitDB
+
+Layout.lua
+ThorSplit.lua

@@ -70,6 +70,57 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     private final java.util.concurrent.atomic.AtomicLong sourceFrames = new java.util.concurrent.atomic.AtomicLong();
     private volatile boolean frameGenArmed = false;
 
+    // ---- Thor split screen ----
+    // When set, only this rectangle of the X screen is shown, fitted into the surface. The top screen
+    // shows the game area and a second renderer on the bottom screen shows the UI band.
+    private volatile android.graphics.Rect splitCrop = null;
+    private boolean isMirror = false;
+    private static final java.util.concurrent.CopyOnWriteArrayList<VulkanRenderer> MIRRORS =
+        new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Shows only [crop] of the X screen (null shows the whole screen again). */
+    public void setSplitCrop(android.graphics.Rect crop) {
+        splitCrop = crop == null ? null : new android.graphics.Rect(crop);
+        synchronized (lock) { updateTransform(); }
+        xServerView.queueEvent(this::updateScene);
+    }
+
+    public android.graphics.Rect getSplitCrop() { return splitCrop; }
+
+    /**
+     * Makes this renderer a mirror: it receives the same presented frames as the main renderer
+     * (Present only talks to xServer.getRenderer()), so it can show another part of the screen.
+     */
+    public void registerAsMirror() {
+        isMirror = true;
+        if (!MIRRORS.contains(this)) MIRRORS.add(this);
+    }
+
+    /** Stops a mirror: no more frames, and it lets go of the window and pointer listeners. */
+    public void releaseMirror() {
+        MIRRORS.remove(this);
+        xServer.windowManager.removeOnWindowModificationListener(this);
+        xServer.pointer.removeOnPointerMotionListener(this);
+    }
+
+    /** Called by the Present extension after the main renderer took a frame. */
+    public static void forwardToMirrors(Window window, Drawable pixmap, short xOff, short yOff) {
+        for (VulkanRenderer m : MIRRORS) {
+            try { m.onUpdateWindowContentDirect(window, pixmap, xOff, yOff); }
+            catch (Throwable t) { android.util.Log.w("VulkanRenderer", "mirror frame failed: " + t); }
+        }
+    }
+
+    /** Fit [crop] into the surface (letterboxed) and return {offX, offY, scale}. */
+    public float[] splitFit() {
+        android.graphics.Rect c = splitCrop;
+        if (c == null || surfaceWidth <= 0 || surfaceHeight <= 0 || c.width() <= 0 || c.height() <= 0) return null;
+        float k = Math.min((float) surfaceWidth / c.width(), (float) surfaceHeight / c.height());
+        float offX = (surfaceWidth - c.width() * k) * 0.5f;
+        float offY = (surfaceHeight - c.height() * k) * 0.5f;
+        return new float[]{offX, offY, k};
+    }
+
     public void setFlatPresentationEnabled(boolean enabled) {
         if (flatPresentationEnabled == enabled) return;
         flatPresentationEnabled = enabled;
@@ -323,6 +374,19 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
 
     private void updateTransform() {
         if (nativeHandle == 0) return;
+        float[] fit = splitFit();
+        if (fit != null) {
+            android.graphics.Rect c = splitCrop;
+            float cw = xServer.screenInfo.width, ch = xServer.screenInfo.height;
+            // Screen point p lands at NDC fraction (o + p*s)/cw. We want c.left -> fit[0] px and
+            // c.right -> fit[0] + c.width()*k px on the surface.
+            float k = fit[2];
+            float sx = cw * k / surfaceWidth, sy = ch * k / surfaceHeight;
+            float ox = cw * (fit[0] - c.left * k) / surfaceWidth;
+            float oy = ch * (fit[1] - c.top * k) / surfaceHeight;
+            nativeSetTransform(nativeHandle, ox, oy, sx, sy);
+            return;
+        }
         if (fullscreen || outputScalingMode == SCALE_STRETCH) {
             nativeSetTransform(nativeHandle, 0, 0, 1.0f, 1.0f);
             nativeScanoutSetDst(nativeHandle,
@@ -656,6 +720,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     }
 
     public void setNativeMode(boolean mode) {
+        if (mode && (isMirror || splitCrop != null)) mode = false;
         if (this.nativeMode == mode) return;
         this.nativeMode = mode;
         xRenderingPausedForScanout = false;
