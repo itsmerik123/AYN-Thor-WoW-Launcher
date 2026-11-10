@@ -48,16 +48,31 @@ jobs:
           # Private-repo artifacts count against the account's Actions storage; keep them one day.
           retention-days: ${{ github.event.repository.private && 1 || 14 }}
 
-      # Tag a commit vX.Y.Z to publish a release. Obtainium watches this repo's releases for the APK.
-      - name: Rename APK for release
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Publish a GitHub release for every new versionName pushed to main or thor-split (Obtainium
+      # watches this repo's releases). Bump versionName/versionCode in app/build.gradle.kts to release.
+      - name: Read version
+        id: ver
+        run: echo "name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version is already released
+        id: exists
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/thor-split'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p release
-          cp app/build/outputs/apk/modern/debug/*.apk "release/ThorWoW-${GITHUB_REF_NAME}.apk"
+          if gh release view "v${{ steps.ver.outputs.name }}" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release/*.apk
-          generate_release_notes: true
+        if: steps.exists.outputs.released == 'false'
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/modern/debug/*.apk "release/ThorWoW-v${{ steps.ver.outputs.name }}.apk"
+          gh release create "v${{ steps.ver.outputs.name }}" release/*.apk \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "v${{ steps.ver.outputs.name }}" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
