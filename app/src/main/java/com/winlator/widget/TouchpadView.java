@@ -299,7 +299,25 @@ public class TouchpadView extends View implements View.OnCapturedPointerListener
         updateXform(w, h, screenInfo.width, screenInfo.height);
     }
 
+    /** Recomputes the touch mapping, e.g. after the Thor split view changed what the top screen shows. */
+    public void refreshXform() {
+        if (getWidth() > 0 && getHeight() > 0) {
+            updateXform(getWidth(), getHeight(), xServer.screenInfo.width, xServer.screenInfo.height);
+        }
+    }
+
     private void updateXform(int outerWidth, int outerHeight, int innerWidth, int innerHeight) {
+        // Thor split screen: this screen shows only a rectangle of the X screen, fitted and centered.
+        if (xServer.getRenderer() instanceof com.winlator.renderer.VulkanRenderer) {
+            android.graphics.Rect crop = ((com.winlator.renderer.VulkanRenderer) xServer.getRenderer()).getSplitCrop();
+            if (crop != null && crop.width() > 0 && crop.height() > 0) {
+                float k = Math.min((float) outerWidth / crop.width(), (float) outerHeight / crop.height());
+                float offX = (outerWidth - crop.width() * k) * 0.5f;
+                float offY = (outerHeight - crop.height() * k) * 0.5f;
+                XForm.set(this.xform, crop.left - offX / k, crop.top - offY / k, 1f / k, 1f / k);
+                return;
+            }
+        }
         ViewTransformation viewTransformation = new ViewTransformation();
         viewTransformation.update(outerWidth, outerHeight, innerWidth, innerHeight);
         float invAspect = 1.0f / viewTransformation.aspect;

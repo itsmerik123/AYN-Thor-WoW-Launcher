@@ -42,6 +42,7 @@ class SplitBandView(
     private val touchLayer = TouchLayer(context)
     private var padView: View? = null
     private val toggle: TextView
+    private val viewButton: TextView
 
     init {
         setBackgroundColor(Color.BLACK)
@@ -49,18 +50,8 @@ class SplitBandView(
         mirror.setSplitCrop(layout.band)
         addView(mirrorView, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         addView(touchLayer, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        toggle = TextView(context).apply {
+        toggle = cornerButton().apply {
             text = "PAD"
-            textSize = 11f
-            setTextColor(Color.argb(200, 255, 255, 255))
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                cornerRadius = 10 * density
-                setColor(Color.argb(110, 0, 0, 0))
-                setStroke((1 * density).toInt(), Color.argb(90, 255, 255, 255))
-            }
-            val pad = (8 * density).toInt()
-            setPadding(pad, pad / 2, pad, pad / 2)
             setOnClickListener { togglePad() }
         }
         addView(toggle, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -68,6 +59,41 @@ class SplitBandView(
             val m = (6 * density).toInt()
             setMargins(m, m, m, m)
         })
+        viewButton = cornerButton().apply { setOnClickListener { toggleTopView() } }
+        addView(viewButton, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.BOTTOM or Gravity.START
+            val m = (6 * density).toInt()
+            setMargins(m, m, m, m)
+        })
+        updateViewButton()
+    }
+
+    private fun cornerButton() = TextView(context).apply {
+        textSize = 11f
+        setTextColor(Color.argb(200, 255, 255, 255))
+        gravity = Gravity.CENTER
+        background = GradientDrawable().apply {
+            cornerRadius = 10 * density
+            setColor(Color.argb(110, 0, 0, 0))
+            setStroke((1 * density).toInt(), Color.argb(90, 255, 255, 255))
+        }
+        val pad = (8 * density).toInt()
+        setPadding(pad, pad / 2, pad, pad / 2)
+    }
+
+    /** Switches the top display between the login view (middle of the screen) and the game view. */
+    private fun toggleTopView() {
+        ThorSplit.loginView = !ThorSplit.loginView
+        (xServer.renderer as? VulkanRenderer)?.setSplitCrop(if (ThorSplit.loginView) layout.login else layout.top)
+        touchpadViewProvider()?.refreshXform()
+        updateViewButton()
+    }
+
+    private fun updateViewButton() {
+        viewButton.text = if (ThorSplit.loginView) "LOGIN VIEW · tap for GAME" else "GAME VIEW"
+        // Big and bright while in login view so it's easy to find after entering the world.
+        viewButton.textSize = if (ThorSplit.loginView) 16f else 11f
+        viewButton.setTextColor(if (ThorSplit.loginView) Color.rgb(255, 210, 90) else Color.argb(200, 255, 255, 255))
     }
 
     private fun togglePad() {

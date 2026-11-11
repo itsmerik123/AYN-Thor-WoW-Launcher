@@ -27,7 +27,18 @@ object ThorSplit {
 
     data class Layout(val screenW: Int, val screenH: Int, val top: Rect, val band: Rect) {
         val screenSize get() = "${screenW}x$screenH"
+
+        /**
+         * Before the world loads, addons can't run, so WoW's login screens fill the whole tall screen and
+         * their dialogs (login, captcha, character select) sit on the seam. The top display shows the
+         * middle of the tall screen until the player switches to the game view.
+         */
+        val login get() = Rect(0, (screenH - top.height()) / 2, top.width(), (screenH - top.height()) / 2 + top.height())
     }
+
+    /** True while the top display shows the login view (the middle of the tall screen). */
+    @Volatile
+    var loginView = true
 
     fun isEnabled(context: Context, flavor: String) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(key(flavor), false)
@@ -64,6 +75,7 @@ object ThorSplit {
             band = Rect(bandX, TOP_H, bandX + bandW, TOP_H + bandH),
         )
         active = layout
+        loginView = true
         rememberResolution(context, layout.screenSize)
         return layout
     }
