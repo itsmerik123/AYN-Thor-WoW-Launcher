@@ -68,14 +68,14 @@ object CompanionIcons {
     suspend fun load(context: Context, key: String): Bitmap? {
         memory.get(key)?.let { return it }
         return withContext(Dispatchers.IO) {
-            val name = key.toIntOrNull()?.let { name(context, it) } ?: key.takeIf { it.toIntOrNull() == null } ?: return@withContext null
-            if (name in failed) return@withContext null
+            val iconName = key.toIntOrNull()?.let { name(context, it) } ?: key.takeIf { it.toIntOrNull() == null } ?: return@withContext null
+            if (iconName in failed) return@withContext null
             val dir = File(context.cacheDir, "wow-icons").apply { mkdirs() }
-            val file = File(dir, "$name.jpg")
+            val file = File(dir, "$iconName.jpg")
             var bmp: Bitmap? = if (file.exists()) BitmapFactory.decodeFile(file.path) else null
             if (bmp == null) {
                 try {
-                    val req = Request.Builder().url("https://wow.zamimg.com/images/wow/icons/large/$name.jpg").build()
+                    val req = Request.Builder().url("https://wow.zamimg.com/images/wow/icons/large/$iconName.jpg").build()
                     client.newCall(req).execute().use { resp ->
                         if (resp.isSuccessful) {
                             val bytes = resp.body?.bytes()
@@ -84,7 +84,7 @@ object CompanionIcons {
                                 bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                             }
                         } else if (resp.code == 404) {
-                            synchronized(failed) { failed.add(name) }
+                            synchronized(failed) { failed.add(iconName) }
                         }
                     }
                 } catch (_: Exception) {

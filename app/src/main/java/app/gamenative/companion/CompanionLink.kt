@@ -238,7 +238,7 @@ object CompanionLink {
     private fun mergeChat(old: ChatLog, chat: JSONObject?): ChatLog {
         if (chat == null) return old
         val session = chat.optLong("s")
-        val byIndex = if (session != old.session) LinkedHashMap() else LinkedHashMap(old.lines)
+        val byIndex: LinkedHashMap<Int, JSONObject> = if (session != old.session) LinkedHashMap() else LinkedHashMap(old.lines)
         val lines = chat.optJSONArray("lines") ?: JSONArray()
         for (i in 0 until lines.length()) {
             val l = lines.optJSONObject(i) ?: continue

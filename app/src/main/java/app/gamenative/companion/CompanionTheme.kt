@@ -33,7 +33,7 @@ import app.gamenative.R
  * Daylight gradient (blue -> purple -> pink -> orange) for accents and XP; Expressway text with an outline.
  */
 object Wow {
-    val Font = FontFamily(Font(R.font.expressway_free))
+    val Family = FontFamily(Font(R.font.expressway_free))
 
     val Screen = Color(0xFF0B0B0D)
     val Background = Color(0xFF141417)
@@ -91,7 +91,7 @@ object Wow {
     }
 
     fun style(size: Float, color: Color = Text) = TextStyle(
-        fontFamily = Font,
+        fontFamily = Family,
         fontSize = size.sp,
         color = color,
         // the game's outlined text: a tight dark shadow reads the same on a small screen
