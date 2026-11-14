@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -44,3 +47,16 @@ jobs:
           path: app/build/outputs/apk/modern/debug/*.apk
           # Private-repo artifacts count against the account's Actions storage; keep them one day.
           retention-days: ${{ github.event.repository.private && 1 || 14 }}
+
+      # The companion branch's newest build, as a plain download link (no sign-in, no zip):
+      # https://github.com/<owner>/<repo>/releases/download/companion-latest/wow-companion.apk
+      - name: Publish companion build
+        if: github.ref_name == 'companion-app'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/modern/debug/*.apk wow-companion.apk
+          gh release delete companion-latest --yes --cleanup-tag || true
+          gh release create companion-latest wow-companion.apk --prerelease --target "$GITHUB_SHA" \
+            --title "WoW companion (test build)" \
+            --notes "Newest build of the companion-app branch ($GITHUB_SHA)."
