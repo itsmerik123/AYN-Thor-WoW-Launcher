@@ -38,6 +38,10 @@ object PadBridge {
         cursorMode = on
     }
 
+    /** Set while the WoW companion shares the second screen with the pad: brings it back to the front. */
+    @Volatile
+    var showCompanion: (() -> Unit)? = null
+
     fun clickFinished() {
         releaseModifiers?.invoke()
     }

@@ -1265,6 +1265,12 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
         }
     }
     val arm64Exe = flavor.exeFile(gameRoot)
+    // The WoW companion (second screen) reads the DS Forever add-ons' documents from the game's log
+    if (flavor == WowFlavor.FOREVER) {
+        app.gamenative.companion.CompanionLink.remember(context, File(File(gameRoot, flavor.dir), "Logs/General.log"))
+    } else {
+        app.gamenative.companion.CompanionLink.forget(context)
+    }
     check(arm64Exe.exists()) { "No ARM64 client in ${arm64Exe.parent} after download." }
 
     onStatus("Configuring ${gpu.label} container...")

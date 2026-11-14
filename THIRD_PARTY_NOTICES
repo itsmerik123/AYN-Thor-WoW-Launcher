@@ -457,3 +457,16 @@ This project bundles `app/src/main/lib/perfsdk-v1.0.0.jar`, the Samsung Performa
 power-control feature. The SDK is proprietary to Samsung Electronics and is NOT covered by
 this project's GPL-3.0 license; it is used under the terms of Samsung's SDK license
 agreement. If you redistribute this project, verify your right to redistribute the SDK.
+
+---
+
+## WoW companion (second screen)
+
+- **Expressway Free** (`app/src/main/res/font/expressway_free.ttf`), (c) 2005 Typodermic Fonts (Ray Larabie),
+  www.typodermic.com. Distributed by Typodermic as freeware. Expressway is a trademark of Typodermic. Only the
+  free cut is included.
+- **Icon names** (`app/src/main/assets/companion/icons.tsv.gz`) are taken from the community WoW list file
+  (https://github.com/wowdev/wow-listfile). The icon pictures themselves are not bundled: they are fetched from
+  Wowhead's public icon CDN when first shown and cached on the device.
+- The companion reads the documents written by the **DS Forever** add-ons (WowCompanion*) and acts through
+  their tap grid. Those add-ons are not part of this project and are not included.

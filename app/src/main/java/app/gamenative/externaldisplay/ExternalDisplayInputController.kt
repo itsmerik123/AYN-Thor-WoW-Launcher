@@ -209,7 +209,20 @@ private class ExternalInputPresentation(
                 setContentView(hybrid)
             }
             ExternalDisplayInputController.Mode.BUTTONS -> {
-                setContentView(ExternalActionPad(context, xServer, PadTheme.DEFAULT, touchpadViewProvider))
+                if (app.gamenative.companion.CompanionLink.recall(context) == null) {
+                    PadBridge.showCompanion = null
+                    setContentView(ExternalActionPad(context, xServer, PadTheme.DEFAULT, touchpadViewProvider))
+                    return
+                }
+                // WoW Forever: the companion screen, with the pad one button away (and back again)
+                val root = FrameLayout(context)
+                lateinit var companion: View
+                PadBridge.showCompanion = { companion.visibility = View.VISIBLE }
+                val pad = ExternalActionPad(context, xServer, PadTheme.DEFAULT, touchpadViewProvider)
+                companion = app.gamenative.companion.CompanionView(context, xServer) { companion.visibility = View.GONE }
+                root.addView(pad, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                root.addView(companion, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                setContentView(root)
             }
             else -> {
                 setContentView(FrameLayout(context))

@@ -39,6 +39,7 @@ class ExternalActionPad(
     private lateinit var trackpadButton: ImageButton
     private lateinit var keyboardButton: ImageButton
     private lateinit var settingsButton: ImageButton
+    private var companionButton: ImageButton? = null
     private lateinit var settingsView: ExternalPadSettingsView
     private lateinit var keyboardView: ExternalOnScreenKeyboardView
     private lateinit var textEntryPanel: LinearLayout
@@ -182,6 +183,8 @@ class ExternalActionPad(
             } else setKeyboard(keyboardView.visibility != View.VISIBLE)
         }
         settingsButton = circleButton(R.drawable.icon_settings, "Settings") { setSettings(!settingsOpen) }
+        // back to the WoW companion screen, when the game has one
+        companionButton = PadBridge.showCompanion?.let { show -> circleButton(R.drawable.icon_companion, "Companion") { show() } }
         settingsView = ExternalPadSettingsView(context, theme).apply {
             layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             visibility = View.GONE
@@ -209,7 +212,7 @@ class ExternalActionPad(
                     pageTabs.add(pageTab(title) { selectPage(i) })
                 }
             }
-            val modeButtons = listOf(settingsButton, trackpadButton, keyboardButton)
+            val modeButtons = listOfNotNull(companionButton, settingsButton, trackpadButton, keyboardButton)
             if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) {
                 // Side by side: no page tabs. The three buttons live at the top of the pad's right column;
                 // this header only shows (with the buttons in it) while the trackpad, keyboard or settings are open.
@@ -304,7 +307,7 @@ class ExternalActionPad(
         if (!PadSettings.bool(PadSettings.SIDE_BY_SIDE) || !::padModeRow.isInitialized) return
         val onPad = padView.visibility == View.VISIBLE
         val target: ViewGroup = if (onPad) padModeRow else headerModes
-        listOf(settingsButton, trackpadButton, keyboardButton).forEach { b ->
+        listOfNotNull(companionButton, settingsButton, trackpadButton, keyboardButton).forEach { b ->
             if (b.parent !== target) {
                 (b.parent as? ViewGroup)?.removeView(b)
                 b.layoutParams = LayoutParams(0, (44 * density).toInt(), 1f).apply { setMargins(m3(), 0, m3(), 0) }
